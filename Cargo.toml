@@ -1,0 +1,36 @@
+[package]
+name = "chess"
+version = "0.1.0"
+edition = "2021"
+description = "CIS 1905 Final Project: Terminal Chess in Rust (ratatui)"
+authors = ["Madhav Sharma"]
+
+# Optional Cargo features (demonstrates the `features` Rust topic).
+# Run with `cargo run --features ai` to enable a tiny rayon-parallel
+# random move suggester (a stretch goal mentioned in the proposal).
+[features]
+default = []
+ai = ["dep:rayon"]
+
+[dependencies]
+# Terminal UI rendering.
+ratatui = "0.29"
+# Cross-platform terminal/keyboard event handling.
+crossterm = { version = "0.28", features = ["event-stream"] }
+# Async runtime used for the main event loop (Async Rust topic).
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time", "sync"] }
+# Async stream extensions used to consume crossterm's EventStream.
+futures = "0.3"
+# Convenient `?` error propagation for the application layer.
+anyhow = "1"
+
+# Optional dependency: only pulled in when the `ai` feature is enabled.
+rayon = { version = "1.10", optional = true }
+
+[dev-dependencies]
+# Used by integration tests in `tests/`.
+# (none required beyond std)
+
+[profile.release]
+opt-level = 3
+lto = "thin"
