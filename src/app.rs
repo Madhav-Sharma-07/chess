@@ -68,6 +68,12 @@ enum AppEvent {
     NewGame,
     /// Promotion piece choice (q/r/b/n).
     Promote(PieceKind),
+    /// Cycle AI opponent: off → AI as Black → AI as White → off.
+    /// (When the `ai` feature isn't compiled in we still accept this
+    /// variant; the handler shows a gentle "not compiled" message.)
+    AiToggle,
+    /// Ask the AI for a hint without playing it.
+    AiSuggest,
     /// Trigger a redraw because the channel is otherwise idle.
     Tick,
 }
@@ -156,6 +162,8 @@ async fn handle_event(ev: AppEvent, game: &Arc<Mutex<GameState>>, ui: &mut UiSta
             ui.selected = None;
             ui.pending_promotion_to = None;
             ui.message = "New game!".into();
+            // If the AI is configured to play White, it moves first.
+            maybe_play_ai_move(&mut g, ui);
         }
         AppEvent::Confirm => {
             let mut g = game.lock().await;
@@ -195,6 +203,8 @@ async fn handle_event(ev: AppEvent, game: &Arc<Mutex<GameState>>, ui: &mut UiSta
                         }
                         Some(m) => {
                             apply_chosen(&mut g, m, ui);
+                            // If the AI is on, it now responds.
+                            maybe_play_ai_move(&mut g, ui);
                         }
                         None => {
                             ui.message = "Illegal move".into();
@@ -216,8 +226,55 @@ async fn handle_event(ev: AppEvent, game: &Arc<Mutex<GameState>>, ui: &mut UiSta
             );
             let mut g = game.lock().await;
             apply_chosen(&mut g, mv, ui);
+            // AI responds after a promotion move just like any other.
+            maybe_play_ai_move(&mut g, ui);
         }
+        AppEvent::AiToggle => handle_ai_toggle(game, ui).await,
+        AppEvent::AiSuggest => handle_ai_suggest(game, ui).await,
     }
+}
+
+/// AI-toggle handler.  Cycles `ui.ai_side` through `None →
+/// Some(Black) → Some(White) → None` and immediately plays the AI's
+/// move if it's now its turn.  When the `ai` feature is off this is
+/// just a friendly message — we don't pretend the toggle worked.
+#[cfg(feature = "ai")]
+async fn handle_ai_toggle(game: &Arc<Mutex<GameState>>, ui: &mut UiState) {
+    ui.ai_side = match ui.ai_side {
+        None => Some(Color::Black),
+        Some(Color::Black) => Some(Color::White),
+        Some(Color::White) => None,
+    };
+    let label = match ui.ai_side {
+        None => "AI off".to_string(),
+        Some(Color::White) => "AI plays White".to_string(),
+        Some(Color::Black) => "AI plays Black".to_string(),
+    };
+    let mut g = game.lock().await;
+    ui.message = label;
+    // If the toggle landed us on AI's move, play it right away.
+    maybe_play_ai_move(&mut g, ui);
+}
+
+#[cfg(not(feature = "ai"))]
+async fn handle_ai_toggle(_: &Arc<Mutex<GameState>>, ui: &mut UiState) {
+    ui.message = "AI not compiled. Rebuild with --features ai.".into();
+}
+
+/// AI-suggest handler.  Computes the AI's best move from the current
+/// position and shows it in the message bar; does *not* play it.
+#[cfg(feature = "ai")]
+async fn handle_ai_suggest(game: &Arc<Mutex<GameState>>, ui: &mut UiState) {
+    let g = game.lock().await;
+    ui.message = match crate::ai::best_move_parallel(&g) {
+        Some(mv) => format!("AI suggests {}", mv.long_algebraic()),
+        None => "No legal moves (game over)".into(),
+    };
+}
+
+#[cfg(not(feature = "ai"))]
+async fn handle_ai_suggest(_: &Arc<Mutex<GameState>>, ui: &mut UiState) {
+    ui.message = "AI not compiled. Rebuild with --features ai.".into();
 }
 
 /// Apply `mv`, update UI feedback.
@@ -233,6 +290,31 @@ fn apply_chosen(g: &mut GameState, mv: Move, ui: &mut UiState) {
         }
     }
 }
+
+/// If the AI is configured to play the current side and the game is
+/// still in progress, ask the AI for a move and apply it.  Called
+/// after every event that *might* leave the AI on move (a human move,
+/// a new game, a toggle).
+///
+/// This is feature-gated; in non-AI builds it's a no-op.
+#[cfg(feature = "ai")]
+fn maybe_play_ai_move(g: &mut GameState, ui: &mut UiState) {
+    let Some(ai_side) = ui.ai_side else { return };
+    if g.side_to_move != ai_side {
+        return;
+    }
+    // If there are no legal moves the game is over (mate or
+    // stalemate) and `best_move_parallel` returns `None`.
+    let Some(ai_mv) = crate::ai::best_move_parallel(g) else {
+        return;
+    };
+    if let Ok(applied) = g.make_move(ai_mv) {
+        ui.message = format!("AI played {}", applied.long_algebraic());
+    }
+}
+
+#[cfg(not(feature = "ai"))]
+fn maybe_play_ai_move(_: &mut GameState, _: &mut UiState) {}
 
 /// Reads from crossterm's async event stream and forwards mapped
 /// events to the main loop.  When the channel closes we exit.
@@ -270,6 +352,10 @@ fn translate_event(ev: Event) -> Option<AppEvent> {
         KeyCode::Down => AppEvent::MoveCursor(0, -1),
         KeyCode::Left => AppEvent::MoveCursor(-1, 0),
         KeyCode::Right => AppEvent::MoveCursor(1, 0),
+        // AI controls (work whether or not the `ai` feature is on;
+        // the handler shows a clear message if it isn't).
+        KeyCode::Char('a') => AppEvent::AiToggle,
+        KeyCode::Char('s') => AppEvent::AiSuggest,
         // Promotion keys: only meaningful after a pawn-to-back-rank
         // candidate move; the main loop checks `pending_promotion_to`.
         KeyCode::Char('Q') => AppEvent::Promote(PieceKind::Queen),

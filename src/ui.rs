@@ -24,6 +24,11 @@ pub struct UiState {
     pub pending_promotion_to: Option<Square>,
     /// Last error/status message shown below the board.
     pub message: String,
+    /// Which side (if any) the AI is playing.  Only present when the
+    /// `ai` Cargo feature is enabled, so non-AI builds don't even
+    /// carry the field.
+    #[cfg(feature = "ai")]
+    pub ai_side: Option<Color>,
 }
 
 impl Default for UiState {
@@ -39,6 +44,8 @@ impl UiState {
             selected: None,
             pending_promotion_to: None,
             message: "Use arrows to move, Enter to select/move, q to quit, n for new game".into(),
+            #[cfg(feature = "ai")]
+            ai_side: None,
         }
     }
 
@@ -130,7 +137,7 @@ fn draw_sidebar(f: &mut Frame, area: Rect, game: &GameState, ui: &UiState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(5),
+            Constraint::Length(6),
             Constraint::Min(5),
             Constraint::Length(5),
         ])
@@ -142,14 +149,30 @@ fn draw_sidebar(f: &mut Frame, area: Rect, game: &GameState, ui: &UiState) {
         Color::White => "White to move",
         Color::Black => "Black to move",
     };
-    let status_para = Paragraph::new(vec![
+    // `mut` is only used when the `ai` feature pushes a third line.
+    #[cfg_attr(not(feature = "ai"), allow(unused_mut))]
+    let mut status_lines = vec![
         Line::from(Span::styled(
             mover,
             Style::default().add_modifier(Modifier::BOLD),
         )),
         Line::from(status_text.as_ref()),
-    ])
-    .block(Block::default().borders(Borders::ALL).title(" Status "));
+    ];
+    #[cfg(feature = "ai")]
+    if let Some(c) = ui.ai_side {
+        let label = match c {
+            Color::White => "AI: plays White",
+            Color::Black => "AI: plays Black",
+        };
+        status_lines.push(Line::from(Span::styled(
+            label,
+            Style::default()
+                .fg(TuiColor::LightCyan)
+                .add_modifier(Modifier::BOLD),
+        )));
+    }
+    let status_para = Paragraph::new(status_lines)
+        .block(Block::default().borders(Borders::ALL).title(" Status "));
     f.render_widget(status_para, chunks[0]);
 
     // --- move history --------------------------------------------------

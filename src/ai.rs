@@ -54,3 +54,21 @@ pub fn best_move_parallel(state: &GameState) -> Option<Move> {
         .max_by_key(|&(_, score)| score)
         .map(|(mv, _)| mv)
 }
+
+/// Same logic as `best_move_parallel`, but sequential.  Useful as a
+/// baseline for timing comparisons — the *only* difference is
+/// `into_iter()` vs `into_par_iter()`, which is exactly the point of
+/// the rayon abstraction.
+pub fn best_move_sequential(state: &GameState) -> Option<Move> {
+    let me = state.side_to_move;
+    let moves = state.legal_moves();
+    moves
+        .into_iter()
+        .map(|mv| {
+            let mut probe = state.clone();
+            let _ = probe.make_move(mv);
+            (mv, material(&probe, me))
+        })
+        .max_by_key(|&(_, score)| score)
+        .map(|(mv, _)| mv)
+}

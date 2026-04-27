@@ -65,10 +65,13 @@ syllabus.
 - [x] **Perft benchmark** &mdash; the standard chess move-generator
       verification &mdash; matching every published value through depth 4.
 - [x] **Snapshot test of the real UI** using ratatui's `TestBackend`.
-- [x] Optional **rayon-parallel AI suggester** behind the `--features ai`
-      flag (one-ply for now &mdash; this is the stretch goal from the
-      proposal; the architecture is there but the move evaluator is
-      deliberately trivial).
+- [x] Optional **rayon-parallel AI opponent** behind the `--features ai`
+      flag. Press `a` in the running game to toggle it on (cycles
+      *off → AI plays Black → AI plays White → off*); press `s` for a
+      hint without playing it. The evaluator is intentionally trivial
+      (one-ply material) &mdash; the point is the parallel pipeline,
+      not chess strength. A proper minimax with alpha-beta was beyond
+      the three-week timeline.
 
 ### Future Work
 
@@ -79,7 +82,8 @@ syllabus.
 - **Mouse input** (the project enables mouse capture but the
   `translate_event` function only handles keyboard).
 - **A real AI**. The `ai.rs` module shows the parallel-iterator scaffolding
-  but only does one-ply material evaluation; a proper minimax with alpha-beta
+  and is wired into the running game (press `a` to play against it), but it
+  only does one-ply material evaluation; a proper minimax with alpha-beta
   was beyond the three-week timeline.
 
 ---
@@ -112,6 +116,10 @@ cargo run --release --features ai
 | `q` / Esc / Ctrl-C   | Quit                                            |
 | `Q` / `R` / `B` / `N`| Choose promotion piece (only after a pawn move  |
 |                      | reaches the back rank)                          |
+| `a`                  | Toggle AI opponent: off → AI plays Black → AI   |
+|                      | plays White → off (only with `--features ai`)   |
+| `s`                  | AI suggests a move (shown in info panel; not    |
+|                      | played) (only with `--features ai`)             |
 
 ---
 
