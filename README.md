@@ -1,13 +1,12 @@
 # Terminal Chess in Rust
 
-CIS 1905 final project &mdash; Madhav Sharma, Spring 2026.
+CIS 1905 final project; Madhav Sharma, Spring 2026.
 
 This is a fully-playable two-player chess game that runs in your terminal.
 The board is rendered with [`ratatui`](https://ratatui.rs/) and the whole
 event loop is async on top of [`tokio`](https://tokio.rs/). I tried to use
 the project as an excuse to actually exercise every topic from the
-syllabus &mdash; not just sprinkle them in for show, but pick a piece of
-the chess problem each one was genuinely the right tool for.
+syllabus.
 
 ```
 ┌ Chess ───────────────────────────────┐┌ Status ──────────────────────────────┐
@@ -25,17 +24,12 @@ the chess problem each one was genuinely the right tool for.
 ```
 
 > The above is the **actual** rendered output, captured via ratatui's
-> `TestBackend` &mdash; not a hand-drawn approximation. You can regenerate
+> `TestBackend`; not a hand-drawn approximation. You can regenerate
 > it yourself with `cargo test --test snapshot -- --nocapture`. In a real
 > terminal it's in colour, with green legal-move highlights, a yellow
 > selected-piece highlight, and a blue cursor.
 
 ---
-
-## What's actually implemented
-
-I'll be honest about what works and what doesn't, since the rubric asks
-for a clear feature list.
 
 ### Things that work
 
@@ -76,9 +70,8 @@ for a clear feature list.
       proposal; the architecture is there but the move evaluator is
       deliberately trivial).
 
-### Things I didn't get to
+### Future Work
 
-To be transparent:
 - **PGN export** (only FEN placement is implemented). I can serialize the
   board but not the move history in PGN format.
 - **Threefold repetition** draw detection (would need a position hash
@@ -122,11 +115,7 @@ cargo run --release --features ai
 
 ---
 
-## How to verify it actually works
-
-Three reproducible commands give you the full evaluation story.
-
-### 1. The big correctness test &mdash; perft
+## Verification
 
 `perft` is the de-facto standard for chess move-generator verification.
 You count every leaf node reachable in N plies from the starting
@@ -156,7 +145,7 @@ Hitting all four numbers exactly is mathematically equivalent to
 promotion works, and we never let our own king walk into check".
 There's no other way to land on those node counts.
 
-### 2. The fast test suite
+### Test suite
 
 ```bash
 cargo test               # 13 tests, ~50 ms total
@@ -181,7 +170,7 @@ What each test covers:
 | `rendered_frame_contains_pieces_and_panels`     | the actual UI code path renders correctly  |
 | `selecting_pawn_renders_legal_targets`          | piece-selection rendering doesn't crash    |
 
-### 3. Lint hygiene
+### Lint hygiene
 
 ```bash
 cargo clippy --all-features --all-targets -- -D warnings
@@ -192,11 +181,8 @@ across all features and all targets (lib, bins, examples, tests).
 
 ---
 
-## How the code is organized
+## Architecture
 
-I deliberately split the code into small files, each one focused on a
-specific Rust concept from the syllabus. The presentation walks through
-them in syllabus order; this README maps them at-a-glance.
 
 | File                | What lives here                              | Concepts on display                              |
 |---------------------|----------------------------------------------|--------------------------------------------------|
@@ -235,7 +221,7 @@ chess/
 
 ---
 
-## Crates I used (and why)
+## Crates
 
 | Crate         | What I used it for                                           |
 |---------------|--------------------------------------------------------------|
@@ -248,9 +234,9 @@ chess/
 
 ---
 
-## Lessons learned
+## Reflections
 
-A few things I'll genuinely take away from this:
+A few things I'll take away from this:
 
 - **Pattern matching is the killer feature.** I never had a "did I forget
   the en-passant case?" debugging session. When I added `MoveKind::EnPassant`
@@ -268,16 +254,3 @@ A few things I'll genuinely take away from this:
   being off at depth 4.
 
 ---
-
-## What I'd do next
-
-If I had another week:
-
-1. **Full PGN/FEN.** The placement parser already round-trips; finishing
-   the other five FEN fields and proper SAN move output would take an
-   afternoon.
-2. **Real minimax in the AI module.** The `best_move_parallel` function is
-   one-ply; replacing it with negamax + alpha-beta is a self-contained
-   change that would showcase rayon properly.
-3. **Threefold-repetition draw.** Needs a position hash, but that's a
-   nice exercise in `derive(Hash)` plus a `HashMap`.
