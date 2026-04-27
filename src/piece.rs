@@ -102,8 +102,22 @@ impl Piece {
         Self { color, kind }
     }
 
-    /// The Unicode chess glyph used in the TUI. We pick the *outline*
-    /// glyphs because they render more reliably across terminals.
+    /// The Unicode chess glyph used in the TUI.
+    ///
+    /// We use the **shape** of the glyph as the white/black cue —
+    /// hollow outline glyphs (U+2654..U+2659) for white pieces, filled
+    /// silhouette glyphs (U+265A..U+265F) for black pieces — and a
+    /// single bright foreground colour in `ui.rs` for all pieces.
+    ///
+    /// Why shape-based: a two-shade brown board has *four* piece-on-
+    /// square combinations.  Trying to distinguish white from black
+    /// purely by foreground colour means at least one combination
+    /// always has a low-contrast piece-vs-background pair (e.g. a
+    /// yellow-tinted "white" piece on a tan light square is the same
+    /// hue family as the square).  By contrast, a hollow-outline
+    /// glyph and a filled-silhouette glyph are visually different at
+    /// a glance regardless of the background, so the cue survives
+    /// any terminal palette quirks.
     pub const fn unicode(self) -> char {
         match (self.color, self.kind) {
             (Color::White, PieceKind::King) => '\u{2654}',

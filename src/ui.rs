@@ -95,28 +95,41 @@ fn draw_board(f: &mut Frame, area: Rect, game: &GameState, ui: &UiState) {
             let is_selected = ui.selected == Some(sq);
             let is_highlight = highlights.contains(&sq);
 
-            // Choose background colour. Highlights override the
-            // light/dark pattern; cursor + selected get distinct hues.
+            // Background colour for this square.  Cursor / selected /
+            // legal-move highlights override the light/dark pattern.
+            // We avoid `LightYellow` for selection because that's the
+            // colour we use for the white-piece foreground.
             let bg = if is_cursor {
                 TuiColor::LightBlue
             } else if is_selected {
-                TuiColor::LightYellow
+                TuiColor::LightMagenta
             } else if is_highlight {
                 TuiColor::LightGreen
             } else if is_light {
-                TuiColor::Rgb(180, 160, 130)
+                TuiColor::Rgb(150, 120, 90)
             } else {
-                TuiColor::Rgb(100, 80, 60)
+                TuiColor::Rgb(85, 60, 40)
             };
 
             let glyph = match game.board.get(sq) {
                 Some(p) => format!(" {} ", p.unicode()),
                 None => "   ".to_string(),
             };
-            let fg = match game.board.get(sq).map(|p| p.color) {
-                Some(Color::White) => TuiColor::White,
-                Some(Color::Black) => TuiColor::Black,
-                None => TuiColor::Reset,
+            // Single bright foreground colour for *all* pieces. The
+            // white/black distinction is carried by the glyph shape
+            // (hollow outline vs filled silhouette — see
+            // `Piece::unicode`), not by colour. Using one foreground
+            // means we only have to make it pop against *both* square
+            // shades, instead of finding two colours that each work
+            // on one specific shade.
+            //
+            // We use a saturated cream so it reads as "ivory" on both
+            // tan and dark-brown squares; bold makes the silhouettes
+            // feel solid.
+            let fg = if game.board.get(sq).is_some() {
+                TuiColor::Rgb(245, 240, 215)
+            } else {
+                TuiColor::Reset
             };
             spans.push(Span::styled(
                 glyph,

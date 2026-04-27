@@ -51,9 +51,11 @@ fn rendered_frame_contains_pieces_and_panels() {
     // White is to move at the start.
     assert!(frame.contains("White to move"), "turn indicator missing");
 
-    // At least one piece glyph should be present.  We use the white
-    // king '\u{2654}' as a sentinel.
+    // At least one piece glyph should be present.  We sentinel on
+    // the white king's hollow glyph U+2654 because white/black are
+    // distinguished by glyph shape (hollow vs filled).
     assert!(frame.contains('\u{2654}'), "white king glyph missing");
+    assert!(frame.contains('\u{265A}'), "black king glyph missing");
 }
 
 /// A second snapshot demonstrating piece-selection highlights.  The
