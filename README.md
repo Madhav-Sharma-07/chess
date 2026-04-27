@@ -156,7 +156,7 @@ There's no other way to land on those node counts.
 ### Test suite
 
 ```bash
-cargo test               # 13 tests, ~50 ms total
+cargo test               # 11 tests, ~50 ms total
 cargo test -- --ignored  # adds the depth-4 perft test (~200 ms in release)
 ```
 
@@ -168,7 +168,6 @@ What each test covers:
 | `fools_mate_is_mate`                            | check + checkmate detection                |
 | `stalemate_detected`                            | stalemate is distinct from checkmate       |
 | `castling_kingside_works`                       | castling is reachable and applies cleanly  |
-| `swap_works` / `same_index_panics`              | the `unsafe` block enforces its contract   |
 | `fen_placement_round_trips`                     | FEN parser ↔ serializer are inverses       |
 | `opening_pawn_pushes_legal`                     | per-square legal-move query                |
 | `promotion_produces_four_choices`               | promotion enumerates Q/R/B/N               |
@@ -201,7 +200,6 @@ across all features and all targets (lib, bins, examples, tests).
 | `src/game.rs`       | `GameState`, special moves, check/mate       | `Box<HistoryEntry>`, iterator pipelines, `match` |
 | `src/ui.rs`         | `ui::draw`, status formatting                | `Cow<'static, str>`, fat pointers                |
 | `src/app.rs`        | async event loop, terminal setup             | `Arc<Mutex<…>>`, mpsc channel, `Send`/`Sync`     |
-| `src/unsafe_demo.rs`| raw-pointer swap helper                      | `unsafe`, written safety contract                |
 | `src/ai.rs` (feat.) | rayon-parallel move suggester                | parallel iterators, `Send` bound                 |
 
 ```
@@ -216,9 +214,8 @@ chess/
 │   ├── board.rs        ← │
 │   ├── move_gen.rs     ← │ rules
 │   ├── game.rs         ←┘
-│   ├── ui.rs           ←┐
-│   ├── app.rs          ← │ runtime + UI
-│   ├── unsafe_demo.rs  ← │
+│   ├── ui.rs           ←┐ runtime + UI
+│   ├── app.rs          ← │
 │   └── ai.rs           ←┘ (feature-gated)
 ├── examples/
 │   └── perft.rs
@@ -253,9 +250,12 @@ A few things I'll take away from this:
   tried to render and mutate the game state from the same task, the
   compiler refused. Wrapping it in `Arc<Mutex<>>` wasn't a workaround &mdash;
   it was the language forcing me to *say* "this is shared mutable state".
-- **`unsafe` made me a more careful programmer.** Writing the safety
-  contract for `swap_squares_unsafe` made me think harder about *why*
-  `i != j` matters than I would have if I'd just used `slice::swap`.
+- **The type system is also a proof system.** `app.rs` has a function
+  `assert_send_sync_state` that is *never called* — its only purpose is
+  to instantiate a generic helper with `GameState` and `Arc<Mutex<GameState>>`.
+  The fact that the crate *compiles* is the proof that those types are
+  thread-safe. If I ever add a non-`Send` field, the build fails before
+  any test runs.
 - **The hardest bug was a chess bug, not a Rust bug.** My first
   `is_square_attacked` treated a pawn's forward push as an attack on
   that square &mdash; but pawns attack only diagonally. Caught by perft

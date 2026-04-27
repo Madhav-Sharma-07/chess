@@ -13,7 +13,6 @@
 //! | `game`          | smart pointers (`Box`), iterator pipelines, closures  |
 //! | `ui`            | `Cow<'static, str>`, fat pointers, lifetimes          |
 //! | `app`           | async/await, `Arc<Mutex<>>`, mpsc channels, `Send`    |
-//! | `unsafe_demo`   | raw pointers, UB reasoning, Miri compatibility        |
 //! | `ai` (feature)  | rayon parallel iterators, `Send`/`Sync` bounds        |
 
 pub mod app;
@@ -23,7 +22,6 @@ pub mod move_gen;
 pub mod moves;
 pub mod piece;
 pub mod ui;
-pub mod unsafe_demo;
 
 #[cfg(feature = "ai")]
 pub mod ai;
