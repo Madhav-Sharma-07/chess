@@ -123,8 +123,14 @@ pub async fn run() -> Result<()> {
         terminal.draw(|f| draw(f, &game_ref, &ui))?;
     }
 
-    // Drop sender so input loop exits if it hasn't already.
+    // The input task is parked on `EventStream::next().await` waiting
+    // for the next keypress; dropping the channel sender alone will
+    // not wake it.  Abort it explicitly so the spawned future is
+    // cancelled at its next `.await`, then await the JoinHandle so the
+    // task is fully torn down before we return (and `TerminalGuard`
+    // restores the terminal).
     drop(tx);
+    input_handle.abort();
     let _ = input_handle.await;
     Ok(())
 }
